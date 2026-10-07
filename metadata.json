@@ -1,0 +1,6 @@
+{
+  "name": "GenHire — AI Content Creator Marketplace",
+  "description": "AI-native marketplace connecting brands and agencies with verified AI creators, featuring playable video portfolios, structured briefs, and explainable creator matching.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
