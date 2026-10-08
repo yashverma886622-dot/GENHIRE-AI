@@ -4,6 +4,7 @@ import creatorRoutes from './routes/creatorRoutes.ts';
 import briefRoutes from './routes/briefRoutes.ts';
 import engagementRoutes from './routes/engagementRoutes.ts';
 import aiRoutes from './routes/aiRoutes.ts';
+import mediaRoutes from './routes/mediaRoutes.ts';
 import { updatePortfolioItem, deletePortfolioItem, findPortfolioById, findCreatorById } from './store.ts';
 import { authMiddleware, requireRole, AuthRequest } from './auth.ts';
 
@@ -26,6 +27,7 @@ export function createApp() {
   app.use('/api/briefs', briefRoutes);
   app.use('/api/engagements', engagementRoutes);
   app.use('/api/ai', aiRoutes);
+  app.use('/api/media', mediaRoutes);
 
   // Dedicated Portfolio item routes
   app.patch('/api/portfolio/:id', authMiddleware, requireRole(['creator']), async (req: AuthRequest, res) => {

@@ -34,6 +34,9 @@ export const CreatorPortfolioManagePage: React.FC = () => {
   const [contentType, setContentType] = useState('Video Ad');
   const [assetType, setAssetType] = useState<'video' | 'image'>('video');
   const [assetUrl, setAssetUrl] = useState('');
+  const [videoSource, setVideoSource] = useState<'url' | 'upload'>('url');
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
   const [thumbnailUrl, setThumbnailUrl] = useState('');
   const [aspectRatio, setAspectRatio] = useState('16:9');
   const [toolsStr, setToolsStr] = useState('Runway Gen-3 Alpha, Midjourney v6');
@@ -44,6 +47,17 @@ export const CreatorPortfolioManagePage: React.FC = () => {
   const [tagsStr, setTagsStr] = useState('Commercial, High Definition, 4K');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!videoFile) {
+      setVideoPreviewUrl(null);
+      return;
+    }
+    const previewUrl = URL.createObjectURL(videoFile);
+    setVideoPreviewUrl(previewUrl);
+    return () => URL.revokeObjectURL(previewUrl);
+  }, [videoFile]);
 
   const fetchPortfolio = async () => {
     try {
@@ -71,6 +85,9 @@ export const CreatorPortfolioManagePage: React.FC = () => {
     setDescription('');
     setContentType('Video Ad');
     setAssetType('video');
+    setVideoSource('url');
+    setVideoFile(null);
+    setFormError(null);
     setAssetUrl('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4');
     setThumbnailUrl('https://images.unsplash.com/photo-1509631179647-0177331693ae?w=800&auto=format&fit=crop&q=80');
     setAspectRatio('9:16');
@@ -89,6 +106,9 @@ export const CreatorPortfolioManagePage: React.FC = () => {
     setDescription(item.description);
     setContentType(item.contentType);
     setAssetType(item.assetType);
+    setVideoSource('url');
+    setVideoFile(null);
+    setFormError(null);
     setAssetUrl(item.assetUrl);
     setThumbnailUrl(item.thumbnailUrl);
     setAspectRatio(item.aspectRatio);
@@ -117,7 +137,13 @@ export const CreatorPortfolioManagePage: React.FC = () => {
     e.preventDefault();
     if (!creator) return;
 
+    if (assetType === 'video' && videoSource === 'upload' && !videoFile) {
+      setFormError('Choose an MP4 video file to upload.');
+      return;
+    }
+
     setIsSubmitting(true);
+    setFormError(null);
     try {
       const toolsUsed = toolsStr.split(',').map(s => s.trim()).filter(Boolean);
       const modelsUsed = modelsStr.split(',').map(s => s.trim()).filter(Boolean);
@@ -125,13 +151,19 @@ export const CreatorPortfolioManagePage: React.FC = () => {
       const workflow = workflowStr.split('\n').map(s => s.trim()).filter(Boolean);
       const tags = tagsStr.split(',').map(s => s.trim()).filter(Boolean);
 
+      let submittedAssetUrl = assetUrl;
+      if (assetType === 'video' && videoSource === 'upload' && videoFile) {
+        const uploaded = await api.uploadVideo(videoFile);
+        submittedAssetUrl = uploaded.assetUrl;
+      }
+
       const payload = {
         title,
         description,
         contentType,
         assetType,
-        assetUrl,
-        thumbnailUrl: thumbnailUrl || assetUrl,
+        assetUrl: submittedAssetUrl,
+        thumbnailUrl: thumbnailUrl || submittedAssetUrl,
         aspectRatio,
         toolsUsed,
         modelsUsed,
@@ -154,7 +186,7 @@ export const CreatorPortfolioManagePage: React.FC = () => {
       setIsModalOpen(false);
       setTimeout(() => setFeedbackMsg(null), 3000);
     } catch (err: unknown) {
-      alert('Failed to save portfolio item.');
+      setFormError(err instanceof Error ? err.message : 'Failed to save portfolio item.');
     } finally {
       setIsSubmitting(false);
     }
@@ -400,19 +432,71 @@ export const CreatorPortfolioManagePage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Media URL */}
+              {/* Media URL or uploaded video */}
               <div>
                 <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
-                  {assetType === 'video' ? 'Direct Browser-Playable MP4 Video URL' : 'Image Asset URL'}
+                  {assetType === 'video' ? 'Video Source' : 'Image Asset URL'}
                 </label>
-                <input
-                  type="url"
-                  required
-                  value={assetUrl}
-                  onChange={(e) => setAssetUrl(e.target.value)}
-                  placeholder="https://...file.mp4"
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-blue-600"
-                />
+                {assetType === 'video' ? (
+                  <>
+                    <div className="grid grid-cols-2 gap-2 mb-2" role="group" aria-label="Video source">
+                      <button
+                        type="button"
+                        onClick={() => { setVideoSource('upload'); setFormError(null); }}
+                        className={`py-2 px-3 text-xs font-bold rounded-lg border ${videoSource === 'upload' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-600'}`}
+                      >
+                        Choose Video File
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setVideoSource('url'); setFormError(null); }}
+                        className={`py-2 px-3 text-xs font-bold rounded-lg border ${videoSource === 'url' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-600'}`}
+                      >
+                        Paste Video URL
+                      </button>
+                    </div>
+                    {videoSource === 'upload' ? (
+                      <input
+                        type="file"
+                        accept="video/mp4,.mp4"
+                        required={!videoFile}
+                        onChange={(event) => {
+                          const file = event.target.files?.[0] || null;
+                          if (file && (!file.name.toLowerCase().endsWith('.mp4') || (file.type && file.type !== 'video/mp4'))) {
+                            setVideoFile(null);
+                            setFormError('Choose a valid MP4 video file.');
+                            event.target.value = '';
+                            return;
+                          }
+                          setFormError(null);
+                          setVideoFile(file);
+                        }}
+                        className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900"
+                      />
+                    ) : (
+                      <input
+                        type="url"
+                        required
+                        value={assetUrl}
+                        onChange={(e) => setAssetUrl(e.target.value)}
+                        placeholder="https://...file.mp4"
+                        className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-blue-600"
+                      />
+                    )}
+                  </>
+                ) : (
+                  <input
+                    type="url"
+                    required
+                    value={assetUrl}
+                    onChange={(e) => setAssetUrl(e.target.value)}
+                    placeholder="https://...image"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-blue-600"
+                  />
+                )}
+                {formError && (
+                  <p role="alert" className="mt-2 text-xs font-medium text-red-700">{formError}</p>
+                )}
               </div>
 
               {/* Thumbnail URL */}
@@ -430,13 +514,23 @@ export const CreatorPortfolioManagePage: React.FC = () => {
               </div>
 
               {/* Live Preview Tester */}
-              {assetType === 'video' && assetUrl && (
+              {assetType === 'video' && (videoSource === 'upload' ? videoPreviewUrl : assetUrl) && (
                 <div className="p-3 bg-slate-100 rounded-xl border border-slate-200">
                   <span className="text-[11px] font-bold uppercase text-slate-600 block mb-2">
                     Live HTML5 Playback Test:
                   </span>
                   <div className="max-w-[320px] mx-auto bg-black rounded-lg overflow-hidden">
-                    <VideoPlayer src={assetUrl} aspectRatio={aspectRatio} />
+                    {videoSource === 'upload' && videoPreviewUrl ? (
+                      <video
+                        src={videoPreviewUrl}
+                        controls
+                        playsInline
+                        preload="metadata"
+                        className="w-full aspect-video bg-black"
+                      />
+                    ) : (
+                      <VideoPlayer src={assetUrl} aspectRatio={aspectRatio} />
+                    )}
                   </div>
                 </div>
               )}

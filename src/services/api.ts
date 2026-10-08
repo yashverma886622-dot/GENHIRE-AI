@@ -22,6 +22,23 @@ export function removeStoredToken(): void {
   localStorage.removeItem(TOKEN_KEY);
 }
 
+async function uploadVideo(file: File): Promise<{ success: boolean; assetUrl: string }> {
+  const headers = new Headers({ 'Content-Type': 'video/mp4' });
+  const token = getStoredToken();
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+
+  const response = await fetch('/api/media/videos', {
+    method: 'POST',
+    headers,
+    body: file,
+  });
+  const data = await response.json().catch(() => ({ success: false, error: 'Invalid server response' }));
+  if (!response.ok || data.success === false) {
+    throw new Error(data.error || `Video upload failed with status ${response.status}`);
+  }
+  return data as { success: boolean; assetUrl: string };
+}
+
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = getStoredToken();
   const headers = new Headers(options.headers || {});
@@ -88,6 +105,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+
+  uploadVideo,
 
   updatePortfolioItem: (id: string, data: Partial<PortfolioItem>) =>
     request<{ success: boolean; item: PortfolioItem }>(`/api/portfolio/${id}`, {
