@@ -524,7 +524,7 @@ export const SEED_PORTFOLIO: PortfolioItem[] = [
     contentType: 'Product Commercial',
     assetType: 'video',
     assetUrl: '/videos/video-1-smartphone.mp4',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1547887537-6158d64c35b3?w=800&auto=format&fit=crop&q=80',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1598327105666-5b89351aff97?w=800&auto=format&fit=crop&q=80',
     toolsUsed: ['Google Gemini'],
     modelsUsed: [],
     workflow: [

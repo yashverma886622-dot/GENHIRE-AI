@@ -193,6 +193,16 @@ export async function initDatabase(): Promise<boolean> {
       await EngagementModel.insertMany(SEED_ENGAGEMENTS);
       console.log('[GenHire DB] Seeding complete.');
     }
+
+    const smartphonePortfolioItem = SEED_PORTFOLIO.find(({ _id }) => _id === 'port_2_video');
+    if (smartphonePortfolioItem) {
+      await PortfolioItemModel.updateOne(
+        { _id: smartphonePortfolioItem._id },
+        { $set: { thumbnailUrl: smartphonePortfolioItem.thumbnailUrl } },
+        { timestamps: false },
+      );
+    }
+
     return true;
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);
